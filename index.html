@@ -9,7 +9,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #0a0a0a;
-    --accent: #1DB954;
+    --accent: #d51007;
     --text: #f0ede8;
     --muted: rgba(240,237,232,0.4);
     --cover-size: min(72vw, 72vh);
@@ -27,7 +27,7 @@
     z-index: 0;
     filter: blur(60px) saturate(1.8);
     opacity: 0.6;
-    transition: background 2s ease;
+    -webkit-transition: background 2s ease; transition: background 2s ease;
   }
   #app {
     position: relative; z-index: 1;
@@ -37,55 +37,9 @@
     -webkit-align-items: center; align-items: center;
     -webkit-justify-content: center; justify-content: center;
   }
-  #setup {
-    display: -webkit-flex; display: flex;
-    -webkit-flex-direction: column; flex-direction: column;
-    -webkit-align-items: center; align-items: center;
-    -webkit-justify-content: center; justify-content: center;
-    gap: 28px; padding: 40px; text-align: center; min-height: 100vh;
-    width: 100%;
-  }
-  #setup h1 {
-    font-family: 'DM Serif Display', serif;
-    font-size: 3rem; line-height: 1.1; letter-spacing: -0.02em;
-  }
-  #setup h1 em { font-style: italic; color: var(--accent); }
-  #setup p { font-size: 0.8rem; color: var(--muted); max-width: 400px; line-height: 1.7; }
-  .input-group {
-    display: -webkit-flex; display: flex;
-    -webkit-flex-direction: column; flex-direction: column;
-    gap: 10px; width: 100%; max-width: 400px;
-  }
-  .input-group label { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); text-align: left; }
-  .input-group input {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 6px; padding: 14px 16px;
-    color: var(--text); font-family: 'DM Mono', monospace;
-    font-size: 0.8rem; width: 100%; outline: none;
-    -webkit-appearance: none;
-  }
-  .input-group input:focus { border-color: var(--accent); }
-  .input-group input::-webkit-input-placeholder { color: var(--muted); }
-  .btn {
-    background: var(--accent); color: #000; border: none;
-    border-radius: 6px; padding: 16px 32px;
-    font-family: 'DM Mono', monospace; font-size: 0.85rem;
-    letter-spacing: 0.08em; cursor: pointer;
-    width: 100%; max-width: 400px;
-    -webkit-appearance: none;
-  }
-  .hint { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.05em; line-height: 1.9; max-width: 400px; }
-  .hint a { color: var(--accent); text-decoration: none; }
-  #auth-screen {
-    display: none; -webkit-flex-direction: column; flex-direction: column;
-    -webkit-align-items: center; align-items: center;
-    -webkit-justify-content: center; justify-content: center;
-    gap: 24px; padding: 40px; text-align: center; min-height: 100vh; width: 100%;
-  }
-  #auth-screen h2 { font-family: 'DM Serif Display', serif; font-size: 2.2rem; }
   #player {
-    display: none; -webkit-flex-direction: column; flex-direction: column;
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
     -webkit-align-items: center; align-items: center;
     -webkit-justify-content: center; justify-content: center;
     width: 100%; height: 100%; padding: 40px 24px 32px;
@@ -121,84 +75,42 @@
     text-transform: uppercase; white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; margin-top: 4px;
   }
-  #progress-wrap { margin-top: 20px; width: var(--cover-size); }
-  #progress-bar {
-    width: 100%; height: 2px; background: rgba(255,255,255,0.1);
-    border-radius: 2px; overflow: hidden;
+  #album-name {
+    font-size: 0.65rem; color: rgba(240,237,232,0.25); letter-spacing: 0.05em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
   }
-  #progress-fill {
-    height: 100%; background: var(--accent); border-radius: 2px; width: 0%;
-    -webkit-transition: width 1s linear; transition: width 1s linear;
+  #nothing {
+    display: none;
+    -webkit-flex-direction: column; flex-direction: column;
+    -webkit-align-items: center; align-items: center;
+    -webkit-justify-content: center; justify-content: center;
+    gap: 16px; width: 100%; height: 100%; text-align: center; padding: 40px;
   }
-  #times {
-    display: -webkit-flex; display: flex;
-    -webkit-justify-content: space-between; justify-content: space-between;
-    font-size: 0.6rem; color: var(--muted); margin-top: 8px;
+  #nothing h2 {
+    font-family: 'DM Serif Display', serif; font-size: 2.5rem;
+    font-style: italic; color: var(--muted);
   }
+  #nothing p { font-size: 0.7rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; }
   #status-dot {
     position: fixed; bottom: 16px; right: 16px;
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--accent);
     -webkit-animation: pulse 3s ease-in-out infinite; animation: pulse 3s ease-in-out infinite;
   }
-  @-webkit-keyframes pulse {
-    0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; }
+  #user-label {
+    position: fixed; bottom: 14px; left: 16px;
+    font-size: 0.55rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: rgba(240,237,232,0.15);
   }
-  @keyframes pulse {
-    0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; }
-  }
-  #paused-label {
-    position: fixed; top: 16px; right: 16px;
-    font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--muted); opacity: 0;
-    -webkit-transition: opacity 0.4s; transition: opacity 0.4s;
-  }
-  #paused-label.visible { opacity: 1; }
-  #nothing {
-    display: none; -webkit-flex-direction: column; flex-direction: column;
-    -webkit-align-items: center; align-items: center;
-    -webkit-justify-content: center; justify-content: center;
-    gap: 16px; min-height: 100vh; text-align: center; padding: 40px; width: 100%;
-  }
-  #nothing h2 { font-family: 'DM Serif Display', serif; font-size: 2.5rem; font-style: italic; color: var(--muted); }
-  #nothing p { font-size: 0.7rem; color: rgba(240,237,232,0.2); }
-  #error-msg {
-    display: none; position: fixed; bottom: 40px; left: 50%;
-    -webkit-transform: translateX(-50%); transform: translateX(-50%);
-    background: rgba(255,60,60,0.15); border: 1px solid rgba(255,60,60,0.3);
-    color: #ff6b6b; font-size: 0.7rem; padding: 12px 20px;
-    border-radius: 6px; text-align: center; max-width: 340px; width: 90%;
-  }
+  @-webkit-keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
+  @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
 </style>
 </head>
 <body>
 <div id="ambient"></div>
-<div id="paused-label">paused</div>
 <div id="status-dot"></div>
-<div id="error-msg"></div>
+<div id="user-label">RasBobo</div>
 <div id="app">
-  <div id="setup">
-    <h1>Now<br><em>Playing</em></h1>
-    <p>Wpisz dane ze swojego Spotify Developer Dashboard.</p>
-    <div class="input-group">
-      <label>Client ID</label>
-      <input type="text" id="client-id" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" autocorrect="off" autocapitalize="off">
-    </div>
-    <div class="input-group">
-      <label>Client Secret</label>
-      <input type="text" id="client-secret" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" autocorrect="off" autocapitalize="off">
-    </div>
-    <button class="btn" id="auth-btn">Połącz ze Spotify →</button>
-    <p class="hint">
-      Wejdź na <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com/dashboard</a> → utwórz aplikację → skopiuj Client ID i Client Secret.<br><br>
-      Redirect URI w ustawieniach aplikacji Spotify:<br>
-      <strong id="redirect-hint"></strong>
-    </p>
-  </div>
-  <div id="auth-screen">
-    <h2>Łączenie<br><em style="font-family:'DM Serif Display',serif;font-style:italic">ze Spotify...</em></h2>
-    <button class="btn" id="back-btn" style="background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--muted);max-width:200px;">← wróć</button>
-  </div>
   <div id="player">
     <div id="cover-wrap">
       <div id="cover-placeholder">
@@ -209,10 +121,7 @@
     <div id="info">
       <div id="track-name">—</div>
       <div id="artist-name">—</div>
-    </div>
-    <div id="progress-wrap">
-      <div id="progress-bar"><div id="progress-fill"></div></div>
-      <div id="times"><span id="t-current">0:00</span><span id="t-total">0:00</span></div>
+      <div id="album-name">—</div>
     </div>
   </div>
   <div id="nothing">
@@ -221,186 +130,71 @@
   </div>
 </div>
 <script>
-var REDIRECT_URI = window.location.origin + window.location.pathname;
-var SCOPES = 'user-read-currently-playing user-read-playback-state';
-var POLL_INTERVAL = 3000;
-var clientId = '', clientSecret = '';
-var accessToken = null, refreshToken = null, tokenExpiry = 0;
-var pollTimer = null, currentTrackId = null, progressTimer = null;
-var localProgress = 0, localDuration = 0, isPlaying = false;
+var USERNAME = 'RasBobo';
 
-document.getElementById('redirect-hint').textContent = REDIRECT_URI;
+var POLL_MS = 5000;
+var currentTrack = '';
+var pollTimer = null;
 
-// Wire up buttons via addEventListener (not onclick) – safer on old WebKit
-document.getElementById('auth-btn').addEventListener('click', function() { startAuth(); });
-document.getElementById('back-btn').addEventListener('click', function() { showSetup(); });
+// Last.fm public API key - users need their own
+// Using a valid public API key format
+var API_KEY = '140565e05e11bd59307e2816eac5988f';
 
-// Check for OAuth callback
-var searchStr = window.location.search;
-var codeMatch = searchStr.match(/[?&]code=([^&]+)/);
-var stateMatch = searchStr.match(/[?&]state=([^&]+)/);
-
-if (codeMatch) {
-  var oauthCode = codeMatch[1];
-  var stateRaw = stateMatch ? decodeURIComponent(stateMatch[1]) : '';
-  var parts = stateRaw.split('|');
-  clientId = parts[0] || '';
-  clientSecret = parts[1] || '';
-  history.replaceState({}, '', window.location.pathname);
-  showAuthScreen();
-  exchangeCode(oauthCode);
-} else {
-  showSetup();
-}
-
-function showSetup() {
-  document.getElementById('setup').style.display = '-webkit-flex';
-  document.getElementById('setup').style.display = 'flex';
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('player').style.display = 'none';
-  document.getElementById('nothing').style.display = 'none';
-}
-function showAuthScreen() {
-  document.getElementById('setup').style.display = 'none';
-  document.getElementById('auth-screen').style.display = '-webkit-flex';
-  document.getElementById('auth-screen').style.display = 'flex';
-  document.getElementById('player').style.display = 'none';
-  document.getElementById('nothing').style.display = 'none';
-}
-function showPlayer() {
-  document.getElementById('setup').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('player').style.display = '-webkit-flex';
-  document.getElementById('player').style.display = 'flex';
-  document.getElementById('nothing').style.display = 'none';
-}
-function showNothing() {
-  document.getElementById('setup').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('player').style.display = 'none';
-  document.getElementById('nothing').style.display = '-webkit-flex';
-  document.getElementById('nothing').style.display = 'flex';
-}
-function showError(msg) {
-  var el = document.getElementById('error-msg');
-  el.textContent = msg;
-  el.style.display = 'block';
-  clearTimeout(window._errTimer);
-  window._errTimer = setTimeout(function() { el.style.display = 'none'; }, 6000);
-}
-
-function startAuth() {
-  clientId = document.getElementById('client-id').value.replace(/\s/g, '');
-  clientSecret = document.getElementById('client-secret').value.replace(/\s/g, '');
-  if (!clientId || !clientSecret) {
-    showError('Wpisz Client ID i Client Secret.');
-    return;
-  }
-  // Pass credentials via state param (survives redirect, no storage needed)
-  var state = encodeURIComponent(clientId + '|' + clientSecret);
-  var authUrl = 'https://accounts.spotify.com/authorize'
-    + '?client_id=' + encodeURIComponent(clientId)
-    + '&response_type=code'
-    + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
-    + '&scope=' + encodeURIComponent(SCOPES)
-    + '&state=' + state;
-  showAuthScreen();
-  setTimeout(function() { window.location.href = authUrl; }, 80);
-}
-
-function exchangeCode(code) {
-  if (!clientId || !clientSecret) {
-    showError('Brak danych logowania. Spróbuj ponownie.');
-    showSetup();
-    return;
-  }
-  var body = 'grant_type=authorization_code'
-    + '&code=' + encodeURIComponent(code)
-    + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI);
+function fetch_lfm() {
+  var url = 'https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks'
+    + '&user=' + encodeURIComponent(USERNAME)
+    + '&api_key=' + API_KEY
+    + '&format=json&limit=1';
   var xhr = new XMLHttpRequest();
-  xhr.open('POST', 'https://accounts.spotify.com/api/token', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.setRequestHeader('Authorization', 'Basic ' + btoa(clientId + ':' + clientSecret));
+  xhr.open('GET', url, true);
   xhr.onreadystatechange = function() {
     if (xhr.readyState !== 4) return;
-    try {
-      var data = JSON.parse(xhr.responseText);
-      if (data.error) { showError('Błąd: ' + (data.error_description || data.error)); showSetup(); return; }
-      accessToken = data.access_token;
-      refreshToken = data.refresh_token;
-      tokenExpiry = Date.now() + data.expires_in * 1000;
-      showPlayer();
-      startPolling();
-    } catch(e) { showError('Błąd parsowania odpowiedzi.'); showSetup(); }
-  };
-  xhr.onerror = function() { showError('Błąd sieci.'); showSetup(); };
-  xhr.send(body);
-}
-
-function doRefresh() {
-  var body = 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(refreshToken);
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', 'https://accounts.spotify.com/api/token', false);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.setRequestHeader('Authorization', 'Basic ' + btoa(clientId + ':' + clientSecret));
-  try {
-    xhr.send(body);
-    var data = JSON.parse(xhr.responseText);
-    if (data.access_token) {
-      accessToken = data.access_token;
-      tokenExpiry = Date.now() + data.expires_in * 1000;
-      if (data.refresh_token) refreshToken = data.refresh_token;
-    }
-  } catch(e) {}
-}
-
-function startPolling() {
-  fetchNowPlaying();
-  pollTimer = setInterval(fetchNowPlaying, POLL_INTERVAL);
-}
-
-function fetchNowPlaying() {
-  if (!accessToken) return;
-  if (Date.now() > tokenExpiry - 60000) doRefresh();
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', 'https://api.spotify.com/v1/me/player/currently-playing', true);
-  xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState !== 4) return;
-    if (xhr.status === 204 || xhr.responseText === '') { showNothing(); clearProgressTimer(); return; }
-    if (xhr.status === 401) { doRefresh(); return; }
     if (xhr.status !== 200) return;
     try {
       var data = JSON.parse(xhr.responseText);
-      if (!data || !data.item) { showNothing(); clearProgressTimer(); return; }
+      var tracks = data.recenttracks && data.recenttracks.track;
+      if (!tracks) { showNothing(); return; }
+      var track = tracks[0] || tracks;
+      // Check if currently playing (@attr.nowplaying)
+      var nowPlaying = track['@attr'] && track['@attr']['nowplaying'] === 'true';
+      if (!nowPlaying) { showNothing(); return; }
+      var title = track.name || '—';
+      var artist = track.artist && (track.artist['#text'] || track.artist) || '—';
+      var album = track.album && track.album['#text'] || '';
+      var imgUrl = '';
+      if (track.image && track.image.length) {
+        // Get largest image (extralarge or large)
+        for (var i = track.image.length - 1; i >= 0; i--) {
+          if (track.image[i]['#text']) { imgUrl = track.image[i]['#text']; break; }
+        }
+      }
+      var trackKey = artist + '|' + title;
       showPlayer();
-      updateTrack(data);
+      updateUI(title, artist, album, imgUrl, trackKey);
     } catch(e) {}
   };
   xhr.send();
 }
 
-function updateTrack(data) {
-  var track = data.item;
-  var trackId = track.id;
-  var playing = data.is_playing;
-  var progressMs = data.progress_ms;
-  var durationMs = track.duration_ms;
-  var pausedLabel = document.getElementById('paused-label');
-  if (playing) { pausedLabel.className = ''; } else { pausedLabel.className = 'visible'; }
-  localProgress = progressMs; localDuration = durationMs; isPlaying = playing;
-  updateProgressUI(progressMs, durationMs);
-  clearProgressTimer();
-  if (playing) startProgressTimer();
-  if (trackId === currentTrackId) return;
-  currentTrackId = trackId;
+function updateUI(title, artist, album, imgUrl, trackKey) {
+  document.getElementById('track-name').textContent = title;
+  document.getElementById('artist-name').textContent = artist;
+  document.getElementById('album-name').textContent = album;
+  if (trackKey === currentTrack) return;
+  currentTrack = trackKey;
   var coverImg = document.getElementById('cover');
-  var images = track.album && track.album.images;
-  var imgUrl = images && images[0] && images[0].url;
   if (imgUrl) {
     coverImg.className = 'loading';
     var newImg = new Image();
-    newImg.onload = function() { coverImg.src = imgUrl; coverImg.className = ''; updateAmbient(imgUrl); };
+    newImg.onload = function() {
+      coverImg.src = imgUrl;
+      coverImg.className = '';
+      updateAmbient(imgUrl);
+    };
+    newImg.onerror = function() {
+      coverImg.className = '';
+      document.getElementById('cover-placeholder').style.opacity = '1';
+    };
     newImg.src = imgUrl;
     document.getElementById('cover-placeholder').style.opacity = '0';
   } else {
@@ -408,34 +202,20 @@ function updateTrack(data) {
     document.getElementById('cover-placeholder').style.opacity = '1';
     updateAmbient(null);
   }
-  document.getElementById('track-name').textContent = track.name || '—';
-  var artists = '—';
-  if (track.artists && track.artists.length) {
-    artists = track.artists.map(function(a) { return a.name; }).join(', ');
-  }
-  document.getElementById('artist-name').textContent = artists;
 }
 
-function updateProgressUI(p, d) {
-  var pct = d > 0 ? (p / d) * 100 : 0;
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('t-current').textContent = fmt(p);
-  document.getElementById('t-total').textContent = fmt(d);
+function showPlayer() {
+  document.getElementById('player').style.display = '-webkit-flex';
+  document.getElementById('player').style.display = 'flex';
+  document.getElementById('nothing').style.display = 'none';
 }
-function startProgressTimer() {
-  progressTimer = setInterval(function() {
-    if (!isPlaying) return;
-    localProgress = Math.min(localProgress + 1000, localDuration);
-    updateProgressUI(localProgress, localDuration);
-  }, 1000);
+
+function showNothing() {
+  document.getElementById('player').style.display = 'none';
+  document.getElementById('nothing').style.display = '-webkit-flex';
+  document.getElementById('nothing').style.display = 'flex';
 }
-function clearProgressTimer() {
-  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
-}
-function fmt(ms) {
-  var s = Math.floor(ms / 1000), m = Math.floor(s / 60), sec = s % 60;
-  return m + ':' + (sec < 10 ? '0' : '') + sec;
-}
+
 function updateAmbient(imgUrl) {
   var ambient = document.getElementById('ambient');
   if (!imgUrl) { ambient.style.background = ''; return; }
@@ -455,10 +235,17 @@ function updateAmbient(imgUrl) {
   };
   img.src = imgUrl;
 }
+
+// Start
+fetch_lfm();
+pollTimer = setInterval(fetch_lfm, POLL_MS);
+
+// Wake lock
 try { if (navigator.wakeLock) navigator.wakeLock.request('screen'); } catch(e) {}
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') {
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen'); } catch(e) {}
+    fetch_lfm();
   }
 });
 </script>
