@@ -403,9 +403,11 @@ let localProgress = 0, localDuration = 0, isPlaying = false;
 document.getElementById('redirect-hint').textContent = REDIRECT_URI;
 
 // Load saved credentials
-const saved = JSON.parse(localStorage.getItem('sp_creds') || '{}');
-if (saved.clientId) document.getElementById('client-id').value = saved.clientId;
-if (saved.clientSecret) document.getElementById('client-secret').value = saved.clientSecret;
+try {
+  const saved = JSON.parse(localStorage.getItem('sp_creds') || '{}');
+  if (saved.clientId) document.getElementById('client-id').value = saved.clientId;
+  if (saved.clientSecret) document.getElementById('client-secret').value = saved.clientSecret;
+} catch(e) {}
 
 // Handle OAuth callback
 const params = new URLSearchParams(window.location.search);
@@ -469,9 +471,9 @@ function startAuth() {
   clientSecret = document.getElementById('client-secret').value.trim();
   if (!clientId || !clientSecret) { showError('Wpisz Client ID i Client Secret.'); return; }
 
-  localStorage.setItem('sp_creds', JSON.stringify({ clientId, clientSecret }));
-  sessionStorage.setItem('sp_client_id', clientId);
-  sessionStorage.setItem('sp_client_secret', clientSecret);
+  try { localStorage.setItem('sp_creds', JSON.stringify({ clientId, clientSecret })); } catch(e) {}
+  try { sessionStorage.setItem('sp_client_id', clientId); } catch(e) {}
+  try { sessionStorage.setItem('sp_client_secret', clientSecret); } catch(e) {}
 
   const state = Math.random().toString(36).slice(2);
   const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(SCOPES)}&state=${state}`;
