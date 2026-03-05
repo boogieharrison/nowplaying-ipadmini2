@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Now Playing</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --accent: #1DB954;
+    --text: #f0ede8;
+    --muted: rgba(240,237,232,0.4);
+    --cover-size: min(72vw, 72vh);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Ambient background glow from cover */
+  #ambient {
+    position: fixed; inset: -20%;
+    background: radial-gradient(ellipse at center, transparent 30%, var(--bg) 70%);
+    z-index: 0;
+    transition: background 2s ease;
+    filter: blur(60px) saturate(1.8);
+    opacity: 0.6;
+  }
+
+  #app {
+    position: relative; z-index: 1;
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 0;
+  }
+
+  /* ── SETUP SCREEN ── */
+  #setup {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 32px; padding: 40px;
+    text-align: center;
+    min-height: 100vh;
+  }
+
+  #setup h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  #setup h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  #setup p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    max-width: 400px;
+    line-height: 1.7;
+    letter-spacing: 0.05em;
+  }
+
+  .input-group {
+    display: flex; flex-direction: column;
+    gap: 12px; width: 100%; max-width: 420px;
+  }
+
+  .input-group label {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .input-group input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-group input:focus {
+    border-color: var(--accent);
+  }
+
+  .input-group input::placeholder { color: var(--muted); }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    padding: 16px 32px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    width: 100%; max-width: 420px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .btn:active { transform: scale(0.98); opacity: 0.85; }
+
+  .hint {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    line-height: 1.8;
+    max-width: 420px;
+  }
+
+  .hint a { color: var(--accent); text-decoration: none; }
+
+  /* ── AUTH SCREEN ── */
+  #auth-screen {
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 24px; padding: 40px;
+    text-align: center; min-height: 100vh;
+  }
+
+  #auth-screen h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.5rem, 6vw, 2.5rem);
+  }
+
+  /* ── PLAYER SCREEN ── */
+  #player {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%; height: 100%;
+    padding: 40px 24px 32px;
+    gap: 0;
+  }
+
+  /* Cover art */
+  #cover-wrap {
+    position: relative;
+    width: var(--cover-size);
+    height: var(--cover-size);
+    flex-shrink: 0;
+  }
+
+  #cover {
+    width: 100%; height: 100%;
+    border-radius: 4px;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.7);
+  }
+
+  #cover.loading {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+
+  #cover-placeholder {
+    width: 100%; height: 100%;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: center;
+    position: absolute; inset: 0;
+  }
+
+  #cover-placeholder svg {
+    width: 40%; height: 40%;
+    opacity: 0.15;
+  }
+
+  /* Track info */
+  #info {
+    margin-top: 28px;
+    width: var(--cover-size);
+    display: flex; flex-direction: column;
+    gap: 4px;
+  }
+
+  #track-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.2rem, 4.5vw, 2rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.4s;
+  }
+
+  #artist-name {
+    font-size: clamp(0.65rem, 2.2vw, 0.85rem);
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.4s;
+  }
+
+  /* Progress bar */
+  #progress-wrap {
+    margin-top: 20px;
+    width: var(--cover-size);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  #progress-bar {
+    width: 100%; height: 2px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  #progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 1s linear;
+  }
+
+  #times {
+    display: flex; justify-content: space-between;
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  /* Status dot */
+  #status-dot {
+    position: fixed;
+    bottom: 16px; right: 16px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.5;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.3); }
+  }
+
+  /* Paused state */
+  #paused-label {
+    position: fixed;
+    top: 16px; right: 16px;
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  #paused-label.visible { opacity: 1; }
+
+  /* Nothing playing */
+  #nothing {
+    display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; min-height: 100vh;
+    text-align: center; padding: 40px;
+  }
+
+  #nothing h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.5rem, 6vw, 2.5rem);
+    font-style: italic;
+    color: var(--muted);
+  }
+
+  #nothing p {
+    font-size: 0.7rem;
+    color: rgba(240,237,232,0.2);
+    letter-spacing: 0.08em;
+  }
+
+  /* Error */
+  #error-msg {
+    display: none;
+    position: fixed; bottom: 40px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,60,60,0.15);
+    border: 1px solid rgba(255,60,60,0.3);
+    color: #ff6b6b;
+    font-size: 0.7rem;
+    padding: 12px 20px;
+    border-radius: 6px;
+    letter-spacing: 0.05em;
+    text-align: center;
+    max-width: 360px;
+  }
+
+  /* Utility */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="ambient"></div>
+<div id="paused-label">paused</div>
+<div id="status-dot"></div>
+<div id="error-msg"></div>
+
+<div id="app">
+
+  <!-- SETUP -->
+  <div id="setup">
+    <h1>Now<br><em>Playing</em></h1>
+    <p>Wpisz dane ze swojego Spotify Developer Dashboard, żeby zacząć.</p>
+
+    <div class="input-group">
+      <label>Client ID</label>
+      <input type="text" id="client-id" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+    </div>
+
+    <div class="input-group">
+      <label>Client Secret</label>
+      <input type="password" id="client-secret" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+    </div>
+
+    <button class="btn" onclick="startAuth()">Połącz ze Spotify →</button>
+
+    <p class="hint">
+      Wejdź na <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com/dashboard</a> → utwórz aplikację → skopiuj Client ID i Client Secret.<br><br>
+      W ustawieniach aplikacji dodaj Redirect URI:<br>
+      <strong id="redirect-hint"></strong>
+    </p>
+  </div>
+
+  <!-- AUTH -->
+  <div id="auth-screen">
+    <h2>Autoryzacja<br><em style="font-family:'DM Serif Display',serif;font-style:italic">Spotify</em></h2>
+    <p style="color:var(--muted);font-size:0.75rem;letter-spacing:0.06em">Logowanie przez Spotify...</p>
+    <button class="btn" onclick="showSetup()" style="max-width:200px;background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--muted)">← wróć</button>
+  </div>
+
+  <!-- PLAYER -->
+  <div id="player">
+    <div id="cover-wrap">
+      <div id="cover-placeholder">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+      </div>
+      <img id="cover" src="" alt="" class="loading">
+    </div>
+    <div id="info">
+      <div id="track-name">—</div>
+      <div id="artist-name">—</div>
+    </div>
+    <div id="progress-wrap">
+      <div id="progress-bar"><div id="progress-fill"></div></div>
+      <div id="times"><span id="t-current">0:00</span><span id="t-total">0:00</span></div>
+    </div>
+  </div>
+
+  <!-- NOTHING PLAYING -->
+  <div id="nothing">
+    <h2>Cisza.</h2>
+    <p>Włącz muzykę na swoim urządzeniu.</p>
+  </div>
+
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────
+const REDIRECT_URI = window.location.origin + window.location.pathname;
+const SCOPES = 'user-read-currently-playing user-read-playback-state';
+const POLL_INTERVAL = 3000;
+
+let clientId = '', clientSecret = '';
+let accessToken = null, refreshToken = null, tokenExpiry = 0;
+let pollTimer = null;
+let currentTrackId = null;
+let progressTimer = null;
+let localProgress = 0, localDuration = 0, isPlaying = false;
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+document.getElementById('redirect-hint').textContent = REDIRECT_URI;
+
+// Load saved credentials
+const saved = JSON.parse(localStorage.getItem('sp_creds') || '{}');
+if (saved.clientId) document.getElementById('client-id').value = saved.clientId;
+if (saved.clientSecret) document.getElementById('client-secret').value = saved.clientSecret;
+
+// Handle OAuth callback
+const params = new URLSearchParams(window.location.search);
+const code = params.get('code');
+
+if (code) {
+  // restore credentials from sessionStorage
+  clientId = sessionStorage.getItem('sp_client_id') || '';
+  clientSecret = sessionStorage.getItem('sp_client_secret') || '';
+  history.replaceState({}, '', window.location.pathname);
+  exchangeCode(code);
+} else {
+  // check for existing tokens
+  const stored = JSON.parse(localStorage.getItem('sp_tokens') || '{}');
+  if (stored.accessToken && stored.refreshToken) {
+    accessToken = stored.accessToken;
+    refreshToken = stored.refreshToken;
+    tokenExpiry = stored.tokenExpiry || 0;
+    clientId = JSON.parse(localStorage.getItem('sp_creds') || '{}').clientId || '';
+    clientSecret = JSON.parse(localStorage.getItem('sp_creds') || '{}').clientSecret || '';
+    showPlayer();
+    startPolling();
+  } else {
+    showSetup();
+  }
+}
+
+// ── SCREENS ──────────────────────────────────────────────────────────────
+function showSetup() {
+  document.getElementById('setup').style.display = 'flex';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('player').style.display = 'none';
+  document.getElementById('nothing').style.display = 'none';
+}
+
+function showPlayer() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('player').style.display = 'flex';
+  document.getElementById('nothing').style.display = 'none';
+}
+
+function showNothing() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('player').style.display = 'none';
+  document.getElementById('nothing').style.display = 'flex';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(window._errTimer);
+  window._errTimer = setTimeout(() => el.style.display = 'none', 5000);
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+function startAuth() {
+  clientId = document.getElementById('client-id').value.trim();
+  clientSecret = document.getElementById('client-secret').value.trim();
+  if (!clientId || !clientSecret) { showError('Wpisz Client ID i Client Secret.'); return; }
+
+  localStorage.setItem('sp_creds', JSON.stringify({ clientId, clientSecret }));
+  sessionStorage.setItem('sp_client_id', clientId);
+  sessionStorage.setItem('sp_client_secret', clientSecret);
+
+  const state = Math.random().toString(36).slice(2);
+  const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(SCOPES)}&state=${state}`;
+
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  window.location.href = url;
+}
+
+async function exchangeCode(code) {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: REDIRECT_URI,
+    });
+
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(clientId + ':' + clientSecret),
+      },
+      body,
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error_description || data.error);
+
+    accessToken = data.access_token;
+    refreshToken = data.refresh_token;
+    tokenExpiry = Date.now() + data.expires_in * 1000;
+
+    localStorage.setItem('sp_tokens', JSON.stringify({ accessToken, refreshToken, tokenExpiry }));
+
+    showPlayer();
+    startPolling();
+  } catch (e) {
+    showError('Błąd autoryzacji: ' + e.message);
+    showSetup();
+  }
+}
+
+async function refreshAccessToken() {
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    });
+
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(clientId + ':' + clientSecret),
+      },
+      body,
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    accessToken = data.access_token;
+    tokenExpiry = Date.now() + data.expires_in * 1000;
+    if (data.refresh_token) refreshToken = data.refresh_token;
+
+    localStorage.setItem('sp_tokens', JSON.stringify({ accessToken, refreshToken, tokenExpiry }));
+  } catch (e) {
+    showError('Sesja wygasła. Zaloguj się ponownie.');
+    localStorage.removeItem('sp_tokens');
+    showSetup();
+  }
+}
+
+// ── POLLING ───────────────────────────────────────────────────────────────
+function startPolling() {
+  fetchNowPlaying();
+  pollTimer = setInterval(fetchNowPlaying, POLL_INTERVAL);
+}
+
+async function fetchNowPlaying() {
+  if (Date.now() > tokenExpiry - 60000) await refreshAccessToken();
+  if (!accessToken) return;
+
+  try {
+    const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: { 'Authorization': 'Bearer ' + accessToken },
+    });
+
+    if (res.status === 204 || res.status === 200 && res.headers.get('content-length') === '0') {
+      showNothing(); clearProgressTimer(); return;
+    }
+
+    if (!res.ok) { showError('Błąd API Spotify: ' + res.status); return; }
+
+    const data = await res.json();
+    if (!data || !data.item) { showNothing(); clearProgressTimer(); return; }
+
+    showPlayer();
+    updateTrack(data);
+  } catch (e) {
+    // silent fail, try next poll
+  }
+}
+
+// ── UI UPDATE ─────────────────────────────────────────────────────────────
+function updateTrack(data) {
+  const track = data.item;
+  const trackId = track.id;
+  const playing = data.is_playing;
+  const progressMs = data.progress_ms;
+  const durationMs = track.duration_ms;
+
+  // Paused label
+  const pausedLabel = document.getElementById('paused-label');
+  pausedLabel.classList.toggle('visible', !playing);
+
+  // Progress
+  localProgress = progressMs;
+  localDuration = durationMs;
+  isPlaying = playing;
+  updateProgressUI(progressMs, durationMs);
+  clearProgressTimer();
+  if (playing) startProgressTimer();
+
+  // If same track, skip cover/title update
+  if (trackId === currentTrackId) return;
+  currentTrackId = trackId;
+
+  // Update cover
+  const coverImg = document.getElementById('cover');
+  const images = track.album?.images;
+  const imgUrl = images && images[0]?.url;
+
+  if (imgUrl) {
+    coverImg.classList.add('loading');
+    const newImg = new Image();
+    newImg.onload = () => {
+      coverImg.src = imgUrl;
+      coverImg.classList.remove('loading');
+      updateAmbient(imgUrl);
+    };
+    newImg.src = imgUrl;
+    document.getElementById('cover-placeholder').style.opacity = '0';
+  } else {
+    coverImg.src = '';
+    document.getElementById('cover-placeholder').style.opacity = '1';
+    updateAmbient(null);
+  }
+
+  // Update text
+  document.getElementById('track-name').textContent = track.name;
+  document.getElementById('artist-name').textContent =
+    track.artists?.map(a => a.name).join(', ') || '—';
+}
+
+function updateProgressUI(progressMs, durationMs) {
+  const pct = durationMs > 0 ? (progressMs / durationMs) * 100 : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('t-current').textContent = formatTime(progressMs);
+  document.getElementById('t-total').textContent = formatTime(durationMs);
+}
+
+function startProgressTimer() {
+  progressTimer = setInterval(() => {
+    if (!isPlaying) return;
+    localProgress = Math.min(localProgress + 1000, localDuration);
+    updateProgressUI(localProgress, localDuration);
+  }, 1000);
+}
+
+function clearProgressTimer() {
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+}
+
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+}
+
+// ── AMBIENT GLOW ──────────────────────────────────────────────────────────
+function updateAmbient(imgUrl) {
+  const ambient = document.getElementById('ambient');
+  if (imgUrl) {
+    // Use a canvas to extract dominant color
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 10; canvas.height = 10;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 10, 10);
+        const d = ctx.getImageData(0, 0, 10, 10).data;
+        let r = 0, g = 0, b = 0;
+        for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i+1]; b += d[i+2]; }
+        const px = d.length / 4;
+        r = Math.floor(r/px); g = Math.floor(g/px); b = Math.floor(b/px);
+        ambient.style.background = `radial-gradient(ellipse at 50% 40%, rgba(${r},${g},${b},0.5) 0%, transparent 70%)`;
+      } catch(e) {
+        ambient.style.background = '';
+      }
+    };
+    img.src = imgUrl;
+  } else {
+    ambient.style.background = '';
+  }
+}
+
+// ── WAKE LOCK (keep screen on) ────────────────────────────────────────────
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      await navigator.wakeLock.request('screen');
+    }
+  } catch(e) {}
+}
+requestWakeLock();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') requestWakeLock();
+});
+</script>
+</body>
+</html>
