@@ -46,8 +46,8 @@
                 z-index: 0;
                 filter: blur(60px) saturate(1.8);
                 opacity: 0.6;
-                -webkit-transition: background 2s ease;
-                transition: background 2s ease;
+                -webkit-transition: background 2.5s ease;
+                transition: background 2.5s ease;
             }
             #app {
                 position: relative;
@@ -83,7 +83,8 @@
                 -webkit-flex-shrink: 0;
                 flex-shrink: 0;
             }
-            /* Two layered images for smooth HD swap */
+            /* 3 layers: prev (fading out), lo-res (instant), hi-res (fading in on top) */
+            #cover-prev,
             #cover-lo,
             #cover-hi {
                 position: absolute;
@@ -94,16 +95,25 @@
                 border-radius: 4px;
                 object-fit: cover;
                 display: block;
+            }
+            #cover-prev {
                 box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+                -webkit-transition: opacity 0.8s ease;
+                transition: opacity 0.8s ease;
+                z-index: 1;
             }
             #cover-lo {
-                -webkit-transition: opacity 0.5s ease;
-                transition: opacity 0.5s ease;
+                opacity: 0;
+                -webkit-transition: opacity 0.6s ease;
+                transition: opacity 0.6s ease;
+                z-index: 2;
             }
             #cover-hi {
                 opacity: 0;
-                -webkit-transition: opacity 0.8s ease;
-                transition: opacity 0.8s ease;
+                box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+                -webkit-transition: opacity 1s ease;
+                transition: opacity 1s ease;
+                z-index: 3;
             }
             #cover-placeholder {
                 width: 100%;
@@ -121,8 +131,9 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                -webkit-transition: opacity 0.4s;
-                transition: opacity 0.4s;
+                z-index: 0;
+                -webkit-transition: opacity 0.6s;
+                transition: opacity 0.6s;
             }
             #cover-placeholder svg {
                 width: 40%;
@@ -132,6 +143,8 @@
             #info {
                 margin-top: 28px;
                 width: var(--cover-size);
+                -webkit-transition: opacity 0.4s ease;
+                transition: opacity 0.4s ease;
             }
             #track-name {
                 font-family: "DM Serif Display", serif;
@@ -238,6 +251,7 @@
                             />
                         </svg>
                     </div>
+                    <img id="cover-prev" src="" alt="" />
                     <img id="cover-lo" src="" alt="" />
                     <img id="cover-hi" src="" alt="" />
                 </div>
@@ -257,7 +271,7 @@
             var API_KEY = "140565e05e11bd59307e2816eac5988f";
             var POLL_MS = 5000;
             var currentTrack = "";
-            var hdToken = ""; // cancellation token for HD lookup
+            var hdToken = "";
 
             function pollLastFm() {
                 var url =
@@ -296,7 +310,6 @@
                         var album = (track.album && track.album["#text"]) || "";
                         var mbid = (track.album && track.album.mbid) || "";
 
-                        // Best Last.fm image (extralarge ~300px) as quick preview
                         var lfmImg = "";
                         if (track.image && track.image.length) {
                             for (var i = track.image.length - 1; i >= 0; i--) {
@@ -309,29 +322,46 @@
 
                         var trackKey = artist + "|" + album;
                         showPlayer();
-                        document.getElementById("track-name").textContent =
-                            title;
-                        document.getElementById("artist-name").textContent =
-                            artist;
-                        document.getElementById("album-name").textContent =
-                            album;
+
+                        // Fade text on track change
+                        if (trackKey !== currentTrack) {
+                            var info = document.getElementById("info");
+                            info.style.opacity = "0";
+                            setTimeout(function () {
+                                document.getElementById(
+                                    "track-name",
+                                ).textContent = title;
+                                document.getElementById(
+                                    "artist-name",
+                                ).textContent = artist;
+                                document.getElementById(
+                                    "album-name",
+                                ).textContent = album;
+                                info.style.opacity = "1";
+                            }, 300);
+                        }
 
                         if (trackKey === currentTrack) return;
                         currentTrack = trackKey;
 
-                        // Generate new HD token to cancel any previous HD lookup
                         var token = trackKey;
                         hdToken = token;
 
-                        // Reset hi layer
-                        var hi = document.getElementById("cover-hi");
-                        hi.src = "";
-                        hi.style.opacity = "0";
+                        // Snapshot current best cover into prev layer
+                        snapshotToPrev();
 
-                        // Step 1: Show Last.fm image immediately (low-res but instant)
+                        // Reset lo and hi
+                        var lo = document.getElementById("cover-lo");
+                        var hi = document.getElementById("cover-hi");
+                        lo.style.opacity = "0";
+                        lo.src = "";
+                        hi.style.opacity = "0";
+                        hi.src = "";
+
+                        // Step 1: fade in lo-res immediately
                         setLoRes(lfmImg, token);
 
-                        // Step 2: In background, fetch HD from Cover Art Archive
+                        // Step 2: background HD fetch
                         if (mbid) {
                             fetchHdByMbid(mbid, token);
                         } else if (album) {
@@ -342,11 +372,33 @@
                 xhr.send();
             }
 
+            function snapshotToPrev() {
+                var prev = document.getElementById("cover-prev");
+                var hi = document.getElementById("cover-hi");
+                var lo = document.getElementById("cover-lo");
+                // Use whatever is currently visible as the prev (fade-out) layer
+                var currentSrc =
+                    hi.style.opacity === "1" && hi.src
+                        ? hi.src
+                        : lo.style.opacity === "1" && lo.src
+                          ? lo.src
+                          : "";
+                if (currentSrc) {
+                    prev.src = currentSrc;
+                    prev.style.opacity = "1";
+                    // Fade prev out after new lo-res appears
+                    setTimeout(function () {
+                        prev.style.opacity = "0";
+                    }, 500);
+                } else {
+                    prev.style.opacity = "0";
+                }
+            }
+
             function setLoRes(url, token) {
                 var lo = document.getElementById("cover-lo");
                 var placeholder = document.getElementById("cover-placeholder");
                 if (!url) {
-                    lo.src = "";
                     placeholder.style.opacity = "1";
                     updateAmbient(null);
                     return;
@@ -355,6 +407,7 @@
                 img.onload = function () {
                     if (hdToken !== token) return;
                     lo.src = url;
+                    lo.style.opacity = "1";
                     placeholder.style.opacity = "0";
                     updateAmbient(url);
                 };
@@ -365,9 +418,10 @@
             }
 
             function fetchHdByMbid(mbid, token) {
-                var url =
-                    "https://coverartarchive.org/release/" + mbid + "/front";
-                loadHd(url, token);
+                loadHd(
+                    "https://coverartarchive.org/release/" + mbid + "/front",
+                    token,
+                );
             }
 
             function searchAndFetchHd(artist, album, token) {
@@ -382,12 +436,14 @@
                 xhr.open("GET", url, true);
                 xhr.setRequestHeader("User-Agent", "NowPlayingApp/1.0");
                 xhr.onreadystatechange = function () {
-                    if (xhr.readyState !== 4) return;
-                    if (hdToken !== token) return;
-                    if (xhr.status !== 200) return;
+                    if (
+                        xhr.readyState !== 4 ||
+                        hdToken !== token ||
+                        xhr.status !== 200
+                    )
+                        return;
                     try {
-                        var data = JSON.parse(xhr.responseText);
-                        var releases = data.releases;
+                        var releases = JSON.parse(xhr.responseText).releases;
                         if (!releases || !releases.length) return;
                         tryHdRelease(releases, 0, token);
                     } catch (e) {}
@@ -396,8 +452,8 @@
             }
 
             function tryHdRelease(releases, idx, token) {
-                if (idx >= releases.length || idx >= 4) return;
-                if (hdToken !== token) return;
+                if (idx >= releases.length || idx >= 4 || hdToken !== token)
+                    return;
                 var mbid = releases[idx].id;
                 if (!mbid) {
                     tryHdRelease(releases, idx + 1, token);
@@ -419,12 +475,7 @@
             function loadHd(url, token) {
                 var img = new Image();
                 img.onload = function () {
-                    if (hdToken !== token) return;
-                    showHd(url, token);
-                };
-                img.onerror = function () {
-                    // MBID direct failed, try search as fallback
-                    // (already handled by caller if needed)
+                    if (hdToken === token) showHd(url, token);
                 };
                 img.src = url;
             }
@@ -435,7 +486,6 @@
                 hi.onload = function () {
                     if (hdToken !== token) return;
                     hi.style.opacity = "1";
-                    // After HD fades in, update ambient with better quality
                     updateAmbient(url);
                 };
                 hi.src = url;
