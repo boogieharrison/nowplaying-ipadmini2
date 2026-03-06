@@ -11,24 +11,19 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #0a0a0a;
-    --accent: #d51007;
     --text: #f0ede8;
     --muted: rgba(240,237,232,0.4);
     --cover-size: min(72vw, 72vh);
   }
   html, body {
     width: 100%; height: 100%;
-    background: var(--bg);
-    color: var(--text);
+    background: var(--bg); color: var(--text);
     font-family: 'DM Mono', monospace;
-    overflow: hidden;
-    -webkit-tap-highlight-color: transparent;
+    overflow: hidden; -webkit-tap-highlight-color: transparent;
   }
   #ambient {
     position: fixed; top: -20%; left: -20%; right: -20%; bottom: -20%;
-    z-index: 0;
-    filter: blur(60px) saturate(1.8);
-    opacity: 0.6;
+    z-index: 0; filter: blur(60px) saturate(1.8); opacity: 0.6;
     -webkit-transition: background 2s ease; transition: background 2s ease;
   }
   #app {
@@ -86,23 +81,28 @@
     -webkit-flex-direction: column; flex-direction: column;
     -webkit-align-items: center; align-items: center;
     -webkit-justify-content: center; justify-content: center;
-    gap: 16px; width: 100%; height: 100%; text-align: center; padding: 40px;
+    width: 100%; height: 100%; text-align: center; padding: 40px;
   }
   #nothing h2 {
     font-family: 'DM Serif Display', serif; font-size: 2.5rem;
     font-style: italic; color: var(--muted);
   }
-  #nothing p { font-size: 0.7rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; }
+  #nothing p { font-size: 0.7rem; color: rgba(240,237,232,0.2); margin-top: 12px; }
   #status-dot {
     position: fixed; bottom: 16px; right: 16px;
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent);
+    width: 6px; height: 6px; border-radius: 50%; background: #d51007;
     -webkit-animation: pulse 3s ease-in-out infinite; animation: pulse 3s ease-in-out infinite;
   }
   #user-label {
     position: fixed; bottom: 14px; left: 16px;
     font-size: 0.55rem; letter-spacing: 0.1em;
     text-transform: uppercase; color: rgba(240,237,232,0.15);
+  }
+  #source-label {
+    position: fixed; bottom: 26px; right: 16px;
+    font-size: 0.45rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: rgba(240,237,232,0.1);
+    text-align: right;
   }
   @-webkit-keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
   @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
@@ -112,6 +112,7 @@
 <div id="ambient"></div>
 <div id="status-dot"></div>
 <div id="user-label">RasBobo</div>
+<div id="source-label" id="source-label"></div>
 <div id="app">
   <div id="player">
     <div id="cover-wrap">
@@ -133,16 +134,12 @@
 </div>
 <script>
 var USERNAME = 'RasBobo';
-
+var API_KEY = 'b25b959554ed76058ac220b7b2e0a026';
 var POLL_MS = 5000;
 var currentTrack = '';
-var pollTimer = null;
+var pendingCover = null;
 
-// Last.fm public API key - users need their own
-// Using a valid public API key format
-var API_KEY = '140565e05e11bd59307e2816eac5988f';
-
-function fetch_lfm() {
+function pollLastFm() {
   var url = 'https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks'
     + '&user=' + encodeURIComponent(USERNAME)
     + '&api_key=' + API_KEY
@@ -150,60 +147,129 @@ function fetch_lfm() {
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.onreadystatechange = function() {
-    if (xhr.readyState !== 4) return;
-    if (xhr.status !== 200) return;
+    if (xhr.readyState !== 4 || xhr.status !== 200) return;
     try {
       var data = JSON.parse(xhr.responseText);
       var tracks = data.recenttracks && data.recenttracks.track;
       if (!tracks) { showNothing(); return; }
       var track = tracks[0] || tracks;
-      // Check if currently playing (@attr.nowplaying)
       var nowPlaying = track['@attr'] && track['@attr']['nowplaying'] === 'true';
       if (!nowPlaying) { showNothing(); return; }
+
       var title = track.name || '—';
       var artist = track.artist && (track.artist['#text'] || track.artist) || '—';
       var album = track.album && track.album['#text'] || '';
-      var imgUrl = '';
+      var mbid = track.album && track.album.mbid || '';
+
+      // Last.fm fallback image (low-res)
+      var lfmImg = '';
       if (track.image && track.image.length) {
-        // Get largest image (extralarge or large)
         for (var i = track.image.length - 1; i >= 0; i--) {
-          if (track.image[i]['#text']) { imgUrl = track.image[i]['#text']; break; }
+          if (track.image[i]['#text']) { lfmImg = track.image[i]['#text']; break; }
         }
       }
-      var trackKey = artist + '|' + title;
+
+      var trackKey = artist + '|' + album + '|' + title;
       showPlayer();
-      updateUI(title, artist, album, imgUrl, trackKey);
+      document.getElementById('track-name').textContent = title;
+      document.getElementById('artist-name').textContent = artist;
+      document.getElementById('album-name').textContent = album;
+
+      if (trackKey === currentTrack) return;
+      currentTrack = trackKey;
+      pendingCover = trackKey;
+
+      // Try HD cover: MusicBrainz MBID first, then search, then fallback to Last.fm
+      if (mbid) {
+        fetchCoverByMbid(mbid, lfmImg, trackKey, artist, album);
+      } else {
+        searchMusicBrainz(artist, album, lfmImg, trackKey);
+      }
     } catch(e) {}
   };
   xhr.send();
 }
 
-function updateUI(title, artist, album, imgUrl, trackKey) {
-  document.getElementById('track-name').textContent = title;
-  document.getElementById('artist-name').textContent = artist;
-  document.getElementById('album-name').textContent = album;
-  if (trackKey === currentTrack) return;
-  currentTrack = trackKey;
-  var coverImg = document.getElementById('cover');
-  if (imgUrl) {
-    coverImg.className = 'loading';
-    var newImg = new Image();
-    newImg.onload = function() {
-      coverImg.src = imgUrl;
-      coverImg.className = '';
-      updateAmbient(imgUrl);
-    };
-    newImg.onerror = function() {
-      coverImg.className = '';
-      document.getElementById('cover-placeholder').style.opacity = '1';
-    };
-    newImg.src = imgUrl;
-    document.getElementById('cover-placeholder').style.opacity = '0';
-  } else {
-    coverImg.src = ''; coverImg.className = '';
-    document.getElementById('cover-placeholder').style.opacity = '1';
-    updateAmbient(null);
+function fetchCoverByMbid(mbid, fallback, trackKey, artist, album) {
+  var url = 'https://coverartarchive.org/release/' + mbid + '/front-500';
+  // CAA returns redirect to actual image - try loading directly
+  setCover('https://coverartarchive.org/release/' + mbid + '/front', fallback, trackKey, 'CAA');
+}
+
+function searchMusicBrainz(artist, album, fallback, trackKey) {
+  if (!album || album === '') { setCover('', fallback, trackKey, 'LFM'); return; }
+  var query = encodeURIComponent('"' + album + '" AND artist:"' + artist + '"');
+  var url = 'https://musicbrainz.org/ws/2/release/?query=' + query + '&fmt=json&limit=3';
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.setRequestHeader('User-Agent', 'NowPlayingApp/1.0');
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState !== 4) return;
+    if (xhr.status !== 200) { setCover('', fallback, trackKey, 'LFM'); return; }
+    try {
+      var data = JSON.parse(xhr.responseText);
+      var releases = data.releases;
+      if (!releases || !releases.length) { setCover('', fallback, trackKey, 'LFM'); return; }
+      // Find release with cover art
+      tryRelease(releases, 0, fallback, trackKey);
+    } catch(e) { setCover('', fallback, trackKey, 'LFM'); }
+  };
+  xhr.send();
+}
+
+function tryRelease(releases, idx, fallback, trackKey) {
+  if (idx >= releases.length || idx >= 3) {
+    setCover('', fallback, trackKey, 'LFM'); return;
   }
+  var mbid = releases[idx].id;
+  if (!mbid) { tryRelease(releases, idx + 1, fallback, trackKey); return; }
+  var hdUrl = 'https://coverartarchive.org/release/' + mbid + '/front';
+  // Test if cover exists by trying to load it
+  var testImg = new Image();
+  testImg.onload = function() {
+    if (pendingCover !== trackKey) return;
+    setCover(hdUrl, fallback, trackKey, 'HD');
+  };
+  testImg.onerror = function() {
+    tryRelease(releases, idx + 1, fallback, trackKey);
+  };
+  testImg.src = hdUrl;
+}
+
+function setCover(hdUrl, fallbackUrl, trackKey, source) {
+  if (pendingCover !== trackKey) return;
+  var url = hdUrl || fallbackUrl;
+  var coverImg = document.getElementById('cover');
+  var placeholder = document.getElementById('cover-placeholder');
+
+  if (!url) {
+    coverImg.src = ''; coverImg.className = '';
+    placeholder.style.opacity = '1';
+    updateAmbient(null);
+    return;
+  }
+
+  coverImg.className = 'loading';
+  var newImg = new Image();
+  newImg.onload = function() {
+    if (pendingCover !== trackKey) return;
+    coverImg.src = url;
+    coverImg.className = '';
+    placeholder.style.opacity = '0';
+    updateAmbient(url);
+  };
+  newImg.onerror = function() {
+    if (pendingCover !== trackKey) return;
+    if (hdUrl && fallbackUrl && url !== fallbackUrl) {
+      // HD failed, try fallback
+      setCover('', fallbackUrl, trackKey, 'LFM');
+    } else {
+      coverImg.className = '';
+      placeholder.style.opacity = '1';
+      updateAmbient(null);
+    }
+  };
+  newImg.src = url;
 }
 
 function showPlayer() {
@@ -211,7 +277,6 @@ function showPlayer() {
   document.getElementById('player').style.display = 'flex';
   document.getElementById('nothing').style.display = 'none';
 }
-
 function showNothing() {
   document.getElementById('player').style.display = 'none';
   document.getElementById('nothing').style.display = '-webkit-flex';
@@ -238,16 +303,16 @@ function updateAmbient(imgUrl) {
   img.src = imgUrl;
 }
 
-// Start
-fetch_lfm();
-pollTimer = setInterval(fetch_lfm, POLL_MS);
+// Start polling
+pollLastFm();
+setInterval(pollLastFm, POLL_MS);
 
 // Wake lock
 try { if (navigator.wakeLock) navigator.wakeLock.request('screen'); } catch(e) {}
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') {
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen'); } catch(e) {}
-    fetch_lfm();
+    pollLastFm();
   }
 });
 </script>
