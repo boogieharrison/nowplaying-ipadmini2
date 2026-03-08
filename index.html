@@ -1,567 +1,249 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
-    <head>
-        <meta charset="UTF-8" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, user-scalable=no"
-        />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-        <title>Now Playing</title>
-        <link
-            href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400&display=swap"
-            rel="stylesheet"
-        />
-        <style>
-            *,
-            *::before,
-            *::after {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-            :root {
-                --bg: #0a0a0a;
-                --text: #f0ede8;
-                --muted: rgba(240, 237, 232, 0.4);
-                --cover-size: min(72vw, 72vh);
-            }
-            html,
-            body {
-                width: 100%;
-                height: 100%;
-                background: var(--bg);
-                color: var(--text);
-                font-family: "DM Mono", monospace;
-                overflow: hidden;
-                -webkit-tap-highlight-color: transparent;
-            }
-            #ambient {
-                position: fixed;
-                top: -20%;
-                left: -20%;
-                right: -20%;
-                bottom: -20%;
-                z-index: 0;
-                filter: blur(60px) saturate(1.8);
-                opacity: 0.6;
-                -webkit-transition: background 2.5s ease;
-                transition: background 2.5s ease;
-            }
-            #app {
-                position: relative;
-                z-index: 1;
-                width: 100vw;
-                height: 100vh;
-                display: -webkit-flex;
-                display: flex;
-                -webkit-flex-direction: column;
-                flex-direction: column;
-                -webkit-align-items: center;
-                align-items: center;
-                -webkit-justify-content: center;
-                justify-content: center;
-            }
-            #player {
-                display: -webkit-flex;
-                display: flex;
-                -webkit-flex-direction: column;
-                flex-direction: column;
-                -webkit-align-items: center;
-                align-items: center;
-                -webkit-justify-content: center;
-                justify-content: center;
-                width: 100%;
-                height: 100%;
-                padding: 40px 24px 32px;
-            }
-            #cover-wrap {
-                position: relative;
-                width: var(--cover-size);
-                height: var(--cover-size);
-                -webkit-flex-shrink: 0;
-                flex-shrink: 0;
-            }
-            /* 3 layers: prev (fading out), lo-res (instant), hi-res (fading in on top) */
-            #cover-prev,
-            #cover-lo,
-            #cover-hi {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                border-radius: 4px;
-                object-fit: cover;
-                display: block;
-            }
-            #cover-prev {
-                box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
-                -webkit-transition: opacity 0.8s ease;
-                transition: opacity 0.8s ease;
-                z-index: 1;
-            }
-            #cover-lo {
-                opacity: 0;
-                -webkit-transition: opacity 0.6s ease;
-                transition: opacity 0.6s ease;
-                z-index: 2;
-            }
-            #cover-hi {
-                opacity: 0;
-                box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
-                -webkit-transition: opacity 1s ease;
-                transition: opacity 1s ease;
-                z-index: 3;
-            }
-            #cover-placeholder {
-                width: 100%;
-                height: 100%;
-                border-radius: 4px;
-                background: rgba(255, 255, 255, 0.04);
-                display: -webkit-flex;
-                display: flex;
-                -webkit-align-items: center;
-                align-items: center;
-                -webkit-justify-content: center;
-                justify-content: center;
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                z-index: 0;
-                -webkit-transition: opacity 0.6s;
-                transition: opacity 0.6s;
-            }
-            #cover-placeholder svg {
-                width: 40%;
-                height: 40%;
-                opacity: 0.15;
-            }
-            #info {
-                margin-top: 28px;
-                width: var(--cover-size);
-                -webkit-transition: opacity 0.4s ease;
-                transition: opacity 0.4s ease;
-            }
-            #track-name {
-                font-family: "DM Serif Display", serif;
-                font-size: 1.8rem;
-                line-height: 1.15;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            #artist-name {
-                font-size: 0.75rem;
-                color: var(--muted);
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                margin-top: 4px;
-            }
-            #album-name {
-                font-size: 0.65rem;
-                color: rgba(240, 237, 232, 0.25);
-                letter-spacing: 0.05em;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                margin-top: 2px;
-            }
-            #nothing {
-                display: none;
-                -webkit-flex-direction: column;
-                flex-direction: column;
-                -webkit-align-items: center;
-                align-items: center;
-                -webkit-justify-content: center;
-                justify-content: center;
-                width: 100%;
-                height: 100%;
-                text-align: center;
-                padding: 40px;
-            }
-            #nothing h2 {
-                font-family: "DM Serif Display", serif;
-                font-size: 2.5rem;
-                font-style: italic;
-                color: var(--muted);
-            }
-            #nothing p {
-                font-size: 0.7rem;
-                color: rgba(240, 237, 232, 0.2);
-                margin-top: 12px;
-            }
-            #status-dot {
-                position: fixed;
-                bottom: 16px;
-                right: 16px;
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: #d51007;
-                -webkit-animation: pulse 3s ease-in-out infinite;
-                animation: pulse 3s ease-in-out infinite;
-            }
-            #user-label {
-                position: fixed;
-                bottom: 14px;
-                left: 16px;
-                font-size: 0.55rem;
-                letter-spacing: 0.1em;
-                text-transform: uppercase;
-                color: rgba(240, 237, 232, 0.15);
-            }
-            @-webkit-keyframes pulse {
-                0%,
-                100% {
-                    opacity: 0.3;
-                }
-                50% {
-                    opacity: 0.9;
-                }
-            }
-            @keyframes pulse {
-                0%,
-                100% {
-                    opacity: 0.3;
-                }
-                50% {
-                    opacity: 0.9;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div id="ambient"></div>
-        <div id="status-dot"></div>
-        <div id="user-label">RasBobo</div>
-        <div id="app">
-            <div id="player">
-                <div id="cover-wrap">
-                    <div id="cover-placeholder">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path
-                                d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"
-                            />
-                        </svg>
-                    </div>
-                    <img id="cover-prev" src="" alt="" />
-                    <img id="cover-lo" src="" alt="" />
-                    <img id="cover-hi" src="" alt="" />
-                </div>
-                <div id="info">
-                    <div id="track-name">—</div>
-                    <div id="artist-name">—</div>
-                    <div id="album-name">—</div>
-                </div>
-            </div>
-            <div id="nothing">
-                <h2>Cisza.</h2>
-                <p>Włącz muzykę na swoim urządzeniu.</p>
-            </div>
-        </div>
-        <script>
-            var USERNAME = "RasBobo";
-            var API_KEY = "140565e05e11bd59307e2816eac5988f";
-            var POLL_MS = 5000;
-            var currentTrack = "";
-            var hdToken = "";
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Now Playing</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d1520;
+    --text: #f0ede8;
+    --muted: rgba(240,237,232,0.45);
+    --cover-size: min(52vw, 80vh);
+  }
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #ambient {
+    position: fixed; top: -30%; left: -30%; right: -30%; bottom: -30%;
+    z-index: 0;
+    filter: blur(80px) saturate(1.4);
+    opacity: 0.35;
+    -webkit-transition: background 3s ease; transition: background 3s ease;
+  }
+  #app {
+    position: relative; z-index: 1;
+    width: 100vw; height: 100vh;
+  }
+  #player {
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: row; flex-direction: row;
+    -webkit-align-items: center; align-items: center;
+    -webkit-justify-content: center; justify-content: center;
+    width: 100%; height: 100%;
+    padding: 48px;
+    gap: 48px;
+  }
+  #left {
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+    -webkit-justify-content: flex-end; justify-content: flex-end;
+    -webkit-flex: 1; flex: 1;
+    height: var(--cover-size);
+    padding-bottom: 8px;
+  }
+  #track-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.6rem, 3.5vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+    word-break: break-word;
+  }
+  #artist-name {
+    font-size: clamp(0.7rem, 1.4vw, 1rem);
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  #album-name {
+    font-size: clamp(0.6rem, 1.1vw, 0.8rem);
+    color: rgba(240,237,232,0.25);
+    letter-spacing: 0.04em;
+  }
+  #cover-wrap {
+    position: relative;
+    width: var(--cover-size);
+    height: var(--cover-size);
+    -webkit-flex-shrink: 0; flex-shrink: 0;
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4);
+  }
+  #cover {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+    -webkit-transition: opacity 0.8s ease; transition: opacity 0.8s ease;
+  }
+  #cover.loading { opacity: 0; }
+  #cover-placeholder {
+    width: 100%; height: 100%;
+    background: rgba(255,255,255,0.04);
+    display: -webkit-flex; display: flex;
+    -webkit-align-items: center; align-items: center;
+    -webkit-justify-content: center; justify-content: center;
+    position: absolute; top: 0; left: 0;
+  }
+  #cover-placeholder svg { width: 35%; height: 35%; opacity: 0.1; }
+  #nothing {
+    display: none;
+    -webkit-flex-direction: column; flex-direction: column;
+    -webkit-align-items: center; align-items: center;
+    -webkit-justify-content: center; justify-content: center;
+    width: 100%; height: 100%; text-align: center; padding: 40px;
+  }
+  #nothing h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 3rem; font-style: italic; color: var(--muted);
+    margin-bottom: 12px;
+  }
+  #nothing p { font-size: 0.7rem; color: rgba(240,237,232,0.2); letter-spacing: 0.08em; }
+  #status-dot {
+    position: fixed; bottom: 14px; right: 14px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    -webkit-animation: pulse 4s ease-in-out infinite; animation: pulse 4s ease-in-out infinite;
+  }
+  @-webkit-keyframes pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.7; } }
+  @keyframes pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.7; } }
+</style>
+</head>
+<body>
+<div id="ambient"></div>
+<div id="status-dot"></div>
+<div id="app">
+  <div id="player">
+    <div id="left">
+      <div id="track-name">—</div>
+      <div id="artist-name">—</div>
+      <div id="album-name">—</div>
+    </div>
+    <div id="cover-wrap">
+      <div id="cover-placeholder">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+      </div>
+      <img id="cover" src="" alt="" class="loading">
+    </div>
+  </div>
+  <div id="nothing">
+    <h2>Cisza.</h2>
+    <p>Włącz muzykę na swoim urządzeniu.</p>
+  </div>
+</div>
+<script>
+var USERNAME = 'RasBobo';
+var API_KEY = 'b25b959554ed76058ac220b7b2e0a026';
+var POLL_MS = 5000;
+var currentTrack = '';
 
-            function pollLastFm() {
-                var url =
-                    "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks" +
-                    "&user=" +
-                    encodeURIComponent(USERNAME) +
-                    "&api_key=" +
-                    API_KEY +
-                    "&format=json&limit=1";
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", url, true);
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState !== 4 || xhr.status !== 200) return;
-                    try {
-                        var data = JSON.parse(xhr.responseText);
-                        var tracks =
-                            data.recenttracks && data.recenttracks.track;
-                        if (!tracks) {
-                            showNothing();
-                            return;
-                        }
-                        var track = tracks[0] || tracks;
-                        var nowPlaying =
-                            track["@attr"] &&
-                            track["@attr"]["nowplaying"] === "true";
-                        if (!nowPlaying) {
-                            showNothing();
-                            return;
-                        }
+function fetch_lfm() {
+  var url = 'https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks'
+    + '&user=' + encodeURIComponent(USERNAME)
+    + '&api_key=' + API_KEY
+    + '&format=json&limit=1';
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState !== 4) return;
+    if (xhr.status !== 200) return;
+    try {
+      var data = JSON.parse(xhr.responseText);
+      var tracks = data.recenttracks && data.recenttracks.track;
+      if (!tracks) { showNothing(); return; }
+      var track = tracks[0] || tracks;
+      var nowPlaying = track['@attr'] && track['@attr']['nowplaying'] === 'true';
+      if (!nowPlaying) { showNothing(); return; }
+      var title = track.name || '—';
+      var artist = (track.artist && (track.artist['#text'] || track.artist.name)) || '—';
+      var album = (track.album && track.album['#text']) || '';
+      var imgUrl = '';
+      if (track.image && track.image.length) {
+        for (var i = track.image.length - 1; i >= 0; i--) {
+          if (track.image[i]['#text']) { imgUrl = track.image[i]['#text']; break; }
+        }
+      }
+      var trackKey = artist + '|' + title;
+      showPlayer();
+      updateUI(title, artist, album, imgUrl, trackKey);
+    } catch(e) {}
+  };
+  xhr.send();
+}
 
-                        var title = track.name || "—";
-                        var artist =
-                            (track.artist &&
-                                (track.artist["#text"] || track.artist)) ||
-                            "—";
-                        var album = (track.album && track.album["#text"]) || "";
-                        var mbid = (track.album && track.album.mbid) || "";
+function updateUI(title, artist, album, imgUrl, trackKey) {
+  document.getElementById('track-name').textContent = title;
+  document.getElementById('artist-name').textContent = artist;
+  document.getElementById('album-name').textContent = album;
+  if (trackKey === currentTrack) return;
+  currentTrack = trackKey;
+  var coverImg = document.getElementById('cover');
+  if (imgUrl) {
+    coverImg.className = 'loading';
+    var newImg = new Image();
+    newImg.onload = function() {
+      coverImg.src = imgUrl;
+      coverImg.className = '';
+      updateAmbient(imgUrl);
+    };
+    newImg.onerror = function() { coverImg.className = ''; };
+    newImg.src = imgUrl;
+    document.getElementById('cover-placeholder').style.opacity = '0';
+  } else {
+    coverImg.src = ''; coverImg.className = '';
+    document.getElementById('cover-placeholder').style.opacity = '1';
+    updateAmbient(null);
+  }
+}
 
-                        var lfmImg = "";
-                        if (track.image && track.image.length) {
-                            for (var i = track.image.length - 1; i >= 0; i--) {
-                                if (track.image[i]["#text"]) {
-                                    lfmImg = track.image[i]["#text"];
-                                    break;
-                                }
-                            }
-                        }
+function showPlayer() {
+  document.getElementById('player').style.display = '-webkit-flex';
+  document.getElementById('player').style.display = 'flex';
+  document.getElementById('nothing').style.display = 'none';
+}
+function showNothing() {
+  document.getElementById('player').style.display = 'none';
+  document.getElementById('nothing').style.display = '-webkit-flex';
+  document.getElementById('nothing').style.display = 'flex';
+}
 
-                        var trackKey = artist + "|" + album;
-                        showPlayer();
+function updateAmbient(imgUrl) {
+  var ambient = document.getElementById('ambient');
+  if (!imgUrl) { ambient.style.background = ''; return; }
+  var img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = function() {
+    try {
+      var c = document.createElement('canvas'); c.width = 10; c.height = 10;
+      var ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, 10, 10);
+      var d = ctx.getImageData(0, 0, 10, 10).data;
+      var r = 0, g = 0, b = 0;
+      for (var i = 0; i < d.length; i += 4) { r += d[i]; g += d[i+1]; b += d[i+2]; }
+      var px = d.length / 4;
+      r = Math.floor(r/px); g = Math.floor(g/px); b = Math.floor(b/px);
+      ambient.style.background = 'radial-gradient(ellipse at 65% 50%, rgba(' + r + ',' + g + ',' + b + ',0.7) 0%, rgba(' + Math.floor(r*0.3) + ',' + Math.floor(g*0.3) + ',' + Math.floor(b*0.3) + ',0.3) 50%, transparent 75%)';
+    } catch(e) { ambient.style.background = ''; }
+  };
+  img.src = imgUrl;
+}
 
-                        // Fade text on track change
-                        if (trackKey !== currentTrack) {
-                            var info = document.getElementById("info");
-                            info.style.opacity = "0";
-                            setTimeout(function () {
-                                document.getElementById(
-                                    "track-name",
-                                ).textContent = title;
-                                document.getElementById(
-                                    "artist-name",
-                                ).textContent = artist;
-                                document.getElementById(
-                                    "album-name",
-                                ).textContent = album;
-                                info.style.opacity = "1";
-                            }, 300);
-                        }
+fetch_lfm();
+setInterval(fetch_lfm, POLL_MS);
 
-                        if (trackKey === currentTrack) return;
-                        currentTrack = trackKey;
-
-                        var token = trackKey;
-                        hdToken = token;
-
-                        // Snapshot current best cover into prev layer
-                        snapshotToPrev();
-
-                        // Reset lo and hi
-                        var lo = document.getElementById("cover-lo");
-                        var hi = document.getElementById("cover-hi");
-                        lo.style.opacity = "0";
-                        lo.src = "";
-                        hi.style.opacity = "0";
-                        hi.src = "";
-
-                        // Step 1: fade in lo-res immediately
-                        setLoRes(lfmImg, token);
-
-                        // Step 2: background HD fetch
-                        if (mbid) {
-                            fetchHdByMbid(mbid, token);
-                        } else if (album) {
-                            searchAndFetchHd(artist, album, token);
-                        }
-                    } catch (e) {}
-                };
-                xhr.send();
-            }
-
-            function snapshotToPrev() {
-                var prev = document.getElementById("cover-prev");
-                var hi = document.getElementById("cover-hi");
-                var lo = document.getElementById("cover-lo");
-                // Use whatever is currently visible as the prev (fade-out) layer
-                var currentSrc =
-                    hi.style.opacity === "1" && hi.src
-                        ? hi.src
-                        : lo.style.opacity === "1" && lo.src
-                          ? lo.src
-                          : "";
-                if (currentSrc) {
-                    prev.src = currentSrc;
-                    prev.style.opacity = "1";
-                    // Fade prev out after new lo-res appears
-                    setTimeout(function () {
-                        prev.style.opacity = "0";
-                    }, 500);
-                } else {
-                    prev.style.opacity = "0";
-                }
-            }
-
-            function setLoRes(url, token) {
-                var lo = document.getElementById("cover-lo");
-                var placeholder = document.getElementById("cover-placeholder");
-                if (!url) {
-                    placeholder.style.opacity = "1";
-                    updateAmbient(null);
-                    return;
-                }
-                var img = new Image();
-                img.onload = function () {
-                    if (hdToken !== token) return;
-                    lo.src = url;
-                    lo.style.opacity = "1";
-                    placeholder.style.opacity = "0";
-                    updateAmbient(url);
-                };
-                img.onerror = function () {
-                    placeholder.style.opacity = "1";
-                };
-                img.src = url;
-            }
-
-            function fetchHdByMbid(mbid, token) {
-                loadHd(
-                    "https://coverartarchive.org/release/" + mbid + "/front",
-                    token,
-                );
-            }
-
-            function searchAndFetchHd(artist, album, token) {
-                var query = encodeURIComponent(
-                    '"' + album + '" AND artist:"' + artist + '"',
-                );
-                var url =
-                    "https://musicbrainz.org/ws/2/release/?query=" +
-                    query +
-                    "&fmt=json&limit=5";
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", url, true);
-                xhr.setRequestHeader("User-Agent", "NowPlayingApp/1.0");
-                xhr.onreadystatechange = function () {
-                    if (
-                        xhr.readyState !== 4 ||
-                        hdToken !== token ||
-                        xhr.status !== 200
-                    )
-                        return;
-                    try {
-                        var releases = JSON.parse(xhr.responseText).releases;
-                        if (!releases || !releases.length) return;
-                        tryHdRelease(releases, 0, token);
-                    } catch (e) {}
-                };
-                xhr.send();
-            }
-
-            function tryHdRelease(releases, idx, token) {
-                if (idx >= releases.length || idx >= 4 || hdToken !== token)
-                    return;
-                var mbid = releases[idx].id;
-                if (!mbid) {
-                    tryHdRelease(releases, idx + 1, token);
-                    return;
-                }
-                var url =
-                    "https://coverartarchive.org/release/" + mbid + "/front";
-                var img = new Image();
-                img.onload = function () {
-                    if (hdToken !== token) return;
-                    showHd(url, token);
-                };
-                img.onerror = function () {
-                    tryHdRelease(releases, idx + 1, token);
-                };
-                img.src = url;
-            }
-
-            function loadHd(url, token) {
-                var img = new Image();
-                img.onload = function () {
-                    if (hdToken === token) showHd(url, token);
-                };
-                img.src = url;
-            }
-
-            function showHd(url, token) {
-                if (hdToken !== token) return;
-                var hi = document.getElementById("cover-hi");
-                hi.onload = function () {
-                    if (hdToken !== token) return;
-                    hi.style.opacity = "1";
-                    updateAmbient(url);
-                };
-                hi.src = url;
-            }
-
-            function showPlayer() {
-                document.getElementById("player").style.display =
-                    "-webkit-flex";
-                document.getElementById("player").style.display = "flex";
-                document.getElementById("nothing").style.display = "none";
-            }
-            function showNothing() {
-                document.getElementById("player").style.display = "none";
-                document.getElementById("nothing").style.display =
-                    "-webkit-flex";
-                document.getElementById("nothing").style.display = "flex";
-            }
-
-            function updateAmbient(imgUrl) {
-                var ambient = document.getElementById("ambient");
-                if (!imgUrl) {
-                    ambient.style.background = "";
-                    return;
-                }
-                var img = new Image();
-                img.crossOrigin = "anonymous";
-                img.onload = function () {
-                    try {
-                        var c = document.createElement("canvas");
-                        c.width = 10;
-                        c.height = 10;
-                        var ctx = c.getContext("2d");
-                        ctx.drawImage(img, 0, 0, 10, 10);
-                        var d = ctx.getImageData(0, 0, 10, 10).data;
-                        var r = 0,
-                            g = 0,
-                            b = 0;
-                        for (var i = 0; i < d.length; i += 4) {
-                            r += d[i];
-                            g += d[i + 1];
-                            b += d[i + 2];
-                        }
-                        var px = d.length / 4;
-                        r = Math.floor(r / px);
-                        g = Math.floor(g / px);
-                        b = Math.floor(b / px);
-                        ambient.style.background =
-                            "radial-gradient(ellipse at 50% 40%, rgba(" +
-                            r +
-                            "," +
-                            g +
-                            "," +
-                            b +
-                            ",0.5) 0%, transparent 70%)";
-                    } catch (e) {
-                        ambient.style.background = "";
-                    }
-                };
-                img.src = imgUrl;
-            }
-
-            pollLastFm();
-            setInterval(pollLastFm, POLL_MS);
-
-            try {
-                if (navigator.wakeLock) navigator.wakeLock.request("screen");
-            } catch (e) {}
-            document.addEventListener("visibilitychange", function () {
-                if (document.visibilityState === "visible") {
-                    try {
-                        if (navigator.wakeLock)
-                            navigator.wakeLock.request("screen");
-                    } catch (e) {}
-                    pollLastFm();
-                }
-            });
-        </script>
-    </body>
+try { if (navigator.wakeLock) navigator.wakeLock.request('screen'); } catch(e) {}
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') {
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen'); } catch(e) {}
+    fetch_lfm();
+  }
+});
+</script>
+</body>
 </html>
